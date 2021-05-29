@@ -72,28 +72,27 @@ namespace NewScripts
 
         private void Roll()
         {
+            if (!_canMove)
+                return;
             _playerAnimator.Roll(_playerMoving.GetInput());
-            UseSkill(2f);
+            StartCoroutine(BlockMovingForTime(2f));
         }
 
         private void DirectAttack()
         {
+            if (!_canMove)
+                return;
             _playerAnimator.DirectAttack();
-            UseSkill(2.35f);
+            StartCoroutine(BlockMovingForTime(2.35f));
         }
 
         private void SlashAttack()
         {
-            _playerAnimator.SlashAttack();
-            UseSkill(1.85f);
-        }
-                
-        private void UseSkill(float time)
-        {
-            if(!_canMove)
+            if (!_canMove)
                 return;
-            StartCoroutine(BlockMovingForTime(time));
-        } 
+            _playerAnimator.SlashAttack();
+            StartCoroutine(BlockMovingForTime(1.85f));
+        }
 
         #endregion
 
@@ -115,6 +114,5 @@ namespace NewScripts
             return transform.position.y < -5f ? true : false;
 
         }
-
     }
 }
