@@ -5,13 +5,15 @@ namespace NewScripts
 {
     public class PlayerAnimator : MonoBehaviour
     {
+        [SerializeField] public GameObject sword;
         private Animator _animator;
-        private Collider _sword;
+        private Collider _swordCollider;
+        
         private void Awake()
         {
             _animator = GetComponent<Animator>();
 
-            _sword = GameObject.FindWithTag("Sword").GetComponent<Collider>();
+            _swordCollider = sword.GetComponent<Collider>();
         }
 
         public void PlayMoveAnimation(Vector3 inputDirection)
@@ -44,11 +46,13 @@ namespace NewScripts
     
         IEnumerator EnableSwordColliderForTime(float time)
         {
-            _sword.enabled= true;
+            _swordCollider.enabled= true;
             yield return new WaitForSeconds(time);
-            _sword.enabled = false;
+            _swordCollider.enabled = false;
         }
 
+        #region Finite States
+        
         public void Die()
         {
             _animator.SetTrigger("Die");
@@ -58,5 +62,19 @@ namespace NewScripts
         {
             _animator.SetTrigger("React");
         }
+        
+        public void Win()
+        {
+            _animator.SetTrigger("Win");
+        }
+        
+        #endregion
+
+        
+        public void DisableSword()
+        {
+            sword.SetActive(false);
+        }
+
     }
 }

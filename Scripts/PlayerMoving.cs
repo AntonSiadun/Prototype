@@ -2,7 +2,7 @@
 
 namespace NewScripts
 {
-    public class PlayerMoving 
+    public class PlayerMoving
     {
         private readonly Joystick _joystick;
         private readonly CharacterController _characterController;
@@ -13,9 +13,7 @@ namespace NewScripts
             _joystick = joystick;
             _characterController = characterController;
         }
-        
-        ~PlayerMoving(){}
-        
+
         public Vector3 GetInput()
         {
             var horizontal = -_joystick.Horizontal;
