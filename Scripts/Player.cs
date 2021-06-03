@@ -4,25 +4,31 @@ using UnityEngine;
 
 namespace NewScripts
 {
-    public class Player : MonoBehaviour
+    public class Player : MonoBehaviourPunCallbacks,IPunObservable
     {
         private PlayerInput _playerInput;
         private PlayerAnimator _playerAnimator;
         private PlayerMoving _playerMoving;
-        private PlayerHealthCheck _playerHealthCheck;
+        private PlayerTrigger _playerTrigger;
 
-        private bool _canMove;
+        public bool canMove = true;
+        public bool isWin;
+        public bool IsDead { get; private set; }
+
         private void Awake()
         {
-            _canMove = true;
-        
             _playerInput = GameObject.Find("InputConnect").GetComponent<PlayerInput>();
-
-            _playerHealthCheck=gameObject.AddComponent<PlayerHealthCheck>();
-            _playerAnimator = gameObject.AddComponent<PlayerAnimator>();
+            _playerAnimator = GetComponent<PlayerAnimator>();
+            _playerTrigger = GetComponent<PlayerTrigger>();
+            _playerTrigger.SetPlayer(this);
+            
             _playerMoving = new PlayerMoving(_playerInput.joystick,
                 GetComponent<CharacterController>());
-
+            
+            //Button Events dont need to control for enemy Object
+            if (!photonView.IsMine)
+                return;
+            
             _playerInput.AddAttackingSkill_1_Listener(DirectAttack);
             _playerInput.AddAttackingSkill_2_Listener(SlashAttack);
             _playerInput.AddDefendingSkillListener(Roll);
@@ -30,49 +36,38 @@ namespace NewScripts
 
         private void Update()
         {
+            //Contol only our Object
+            if (!photonView.IsMine)
+                return;
+
             if(IsFalling())
             {
-                GameSceneManager.Instance.LeaveRoom();
-                DestroyImmediate(this);
+                IsDead = true;
             }
-            if(!_canMove)
+            
+            if(!canMove||isWin||IsDead)
                 return;
-        
-            _playerMoving.MoveCharacter(_canMove);
+            
+            _playerMoving.MoveCharacter(canMove);
             _playerAnimator.PlayMoveAnimation(_playerMoving.GetInput());
+            
+            if (GameRules.Enemy == null)
+                return;
+            transform.LookAt(GameRules.Enemy.transform);
         }
-
-        #region Moving Block
-    
-        public void BlockMoving()
-        {
-            SetMovingStatus(false);
-        }
-
-        public void UnlockMoving()
-        {
-            SetMovingStatus(true);
-        }
-
-        private void SetMovingStatus(bool status)
-        {
-            _canMove = status;
-        }
-    
-    
+        
         IEnumerator BlockMovingForTime(float time)
         {
-            _canMove = false;
+            canMove = false;
             yield return new WaitForSeconds(time);
-            _canMove = true;
+            canMove = true;
         }
-        #endregion
 
         #region Skills
 
         private void Roll()
         {
-            if (!_canMove)
+            if (!canMove || IsDead)
                 return;
             _playerAnimator.Roll(_playerMoving.GetInput());
             StartCoroutine(BlockMovingForTime(2f));
@@ -80,7 +75,7 @@ namespace NewScripts
 
         private void DirectAttack()
         {
-            if (!_canMove)
+            if (!canMove|| IsDead)
                 return;
             _playerAnimator.DirectAttack();
             StartCoroutine(BlockMovingForTime(2.35f));
@@ -88,7 +83,7 @@ namespace NewScripts
 
         private void SlashAttack()
         {
-            if (!_canMove)
+            if (!canMove|| IsDead)
                 return;
             _playerAnimator.SlashAttack();
             StartCoroutine(BlockMovingForTime(1.85f));
@@ -96,23 +91,57 @@ namespace NewScripts
 
         #endregion
 
-        public void Die()
+        #region Finite States
+
+        public void Kill()
         {
+            IsDead = true;
             _playerMoving.TurnOffCharacterController();
-            BlockMoving();
-            
             _playerAnimator.Die();
         }
-
+        
         public void React()
         {
             _playerAnimator.React();
         }
+        
+        [PunRPC]
+        public void Win()
+        {
+            Debug.Log($"{photonView.ViewID}");
+            _playerAnimator.Win();
+        }
 
         private bool IsFalling()
         {
-            return transform.position.y < -5f ? true : false;
+            return transform.position.y < -2f;
 
+        }
+        
+        #endregion
+
+        public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+        {
+            if (stream.IsWriting)
+            {
+                stream.SendNext(_playerAnimator.sword.activeSelf);
+                stream.SendNext(IsDead);
+                stream.SendNext(canMove);
+            }
+            else
+            {
+                var isActive = (bool) stream.ReceiveNext();
+                IsDead = (bool) stream.ReceiveNext();
+                canMove = (bool) stream.ReceiveNext();
+                
+                
+                _playerAnimator.sword.SetActive(isActive);
+            }
+        }
+
+        public override void OnLeftRoom()
+        {
+            Destroy(this);
         }
     }
 }
